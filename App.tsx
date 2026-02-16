@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { analyzeAsset } from './services/geminiService';
 import { AnalysisData, LoadingState, Language } from './types';
 import AnalysisDashboard from './components/AnalysisDashboard';
-import { Search, Terminal, AlertTriangle, Cpu, Key, Globe, ShieldCheck } from 'lucide-react';
+import { Search, Terminal, AlertTriangle, Cpu, Globe, ShieldCheck, Lock } from 'lucide-react';
 
 const App: React.FC = () => {
   const [assetInput, setAssetInput] = useState('');
@@ -11,33 +11,6 @@ const App: React.FC = () => {
   const [loadingState, setLoadingState] = useState<LoadingState>(LoadingState.IDLE);
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState<Language>('ID');
-  const [hasKey, setHasKey] = useState<boolean>(true);
-
-  useEffect(() => {
-    const checkKeyStatus = async () => {
-      if ((window as any).aistudio) {
-        try {
-          const isSelected = await (window as any).aistudio.hasSelectedApiKey();
-          setHasKey(isSelected);
-        } catch (e) {
-          console.warn("AI Studio check failed", e);
-        }
-      }
-    };
-    checkKeyStatus();
-  }, []);
-
-  const handleConnectKey = async () => {
-    if ((window as any).aistudio) {
-      try {
-        await (window as any).aistudio.openSelectKey();
-        setHasKey(true);
-        setError(null);
-      } catch (e) {
-        console.error("Failed key dialog", e);
-      }
-    }
-  };
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +26,6 @@ const App: React.FC = () => {
       setLoadingState(LoadingState.COMPLETE);
     } catch (err: any) {
       console.error(err);
-      if (err.message?.includes('not found')) setHasKey(false);
       setError(err.message || "Protocol Failure: External markets unreachable.");
       setLoadingState(LoadingState.ERROR);
     }
@@ -81,15 +53,12 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-6">
-            <button 
-              onClick={handleConnectKey}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full border text-[10px] font-black transition-all ${!hasKey ? 'bg-terminal-red/10 border-terminal-red/50 text-terminal-red animate-pulse' : 'bg-terminal-panel border-terminal-border text-terminal-dim hover:text-white hover:border-terminal-gold'}`}
-            >
-              <Key size={12} />
-              {!hasKey ? 'UNAUTHORIZED' : 'ENCRYPTED'}
-            </button>
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-terminal-panel/50 border border-terminal-border rounded-full text-[9px] font-black text-terminal-green uppercase tracking-widest">
+              <Lock size={10} />
+              Secured Session
+            </div>
 
-            <div className="hidden sm:flex bg-terminal-panel border border-terminal-border rounded-full p-1">
+            <div className="flex bg-terminal-panel border border-terminal-border rounded-full p-1">
               {['ID', 'EN'].map((l) => (
                 <button 
                   key={l}

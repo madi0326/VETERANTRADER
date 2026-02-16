@@ -85,7 +85,7 @@ export const analyzeAsset = async (assetName: string, language: Language): Promi
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: basePrompt + " Use Google Search grounding to find real-time prices, news, and sentiment.",
       config: {
         tools: [{ googleSearch: {} }],
@@ -112,7 +112,7 @@ export const analyzeAsset = async (assetName: string, language: Language): Promi
     console.warn("Primary API Call Failed. Using fallback...", error);
     
     const fallbackResponse = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: basePrompt + " (Search grounding unavailable, use internal knowledge).",
       config: {
         responseMimeType: "application/json",
