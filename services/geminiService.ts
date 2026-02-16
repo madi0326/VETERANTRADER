@@ -1,33 +1,35 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisData, Language } from "../types";
 
 const analysisSchema = {
   type: Type.OBJECT,
   properties: {
-    asset: { type: Type.STRING, description: "Nama aset yang dianalisis (misal: BTC/USDT)" },
-    currentPrice: { type: Type.STRING, description: "Harga saat ini (gunakan estimasi terbaik jika search tidak tersedia)" },
+    asset: { type: Type.STRING, description: "Nama aset (e.g., BTC/USDT)" },
+    currentPrice: { type: Type.STRING, description: "Harga terkini dari grounding search" },
     marketStructure: { 
       type: Type.STRING, 
       enum: ["Trending Bullish", "Trending Bearish", "Ranging", "Correction"],
-      description: "Struktur pasar keseluruhan pada Daily/H4"
+      description: "Struktur pasar makro"
     },
-    marketStructureDetails: { type: Type.STRING, description: "Analisis detail struktur pasar dan tren" },
+    marketStructureDetails: { type: Type.STRING, description: "Analisis mendalam tentang Price Action dan Market Structure Shift (MSS)" },
     levels: {
       type: Type.OBJECT,
       properties: {
-        supports: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Level support kunci" },
-        resistances: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Level resistance kunci" },
-        fibonacci: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Level Fib yang relevan" }
+        supports: { type: Type.ARRAY, items: { type: Type.STRING } },
+        resistances: { type: Type.ARRAY, items: { type: Type.STRING } },
+        fibonacci: { type: Type.ARRAY, items: { type: Type.STRING } },
+        institutionalZones: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Order Blocks, FVG, atau Liquidity Pools" }
       },
       required: ["supports", "resistances"]
     },
     technicals: {
       type: Type.OBJECT,
       properties: {
-        ema: { type: Type.STRING, description: "Analisis EMA 20, 50, 200" },
-        momentum: { type: Type.STRING, description: "Analisis RSI/Stochastic" },
-        volume: { type: Type.STRING, description: "Analisis profil volume dan likuiditas" },
-        volatility: { type: Type.STRING, description: "Analisis ATR atau Bollinger Bands" }
+        ema: { type: Type.STRING },
+        momentum: { type: Type.STRING },
+        volume: { type: Type.STRING },
+        volatility: { type: Type.STRING }
       },
       required: ["ema", "momentum", "volume", "volatility"]
     },
@@ -35,40 +37,56 @@ const analysisSchema = {
       type: Type.OBJECT,
       properties: {
         signal: { type: Type.STRING, enum: ["LONG", "SHORT", "NEUTRAL"] },
-        entryZone: { type: Type.STRING, description: "Zona entry presisi" },
-        stopLoss: { type: Type.STRING, description: "Level stop loss logis" },
-        takeProfits: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Minimal 3 target TP" },
-        riskRewardRatio: { type: Type.STRING, description: "Estimasi rasio R:R" }
+        entryZone: { type: Type.STRING },
+        stopLoss: { type: Type.STRING },
+        takeProfits: { type: Type.ARRAY, items: { type: Type.STRING } },
+        riskRewardRatio: { type: Type.STRING }
       },
       required: ["signal", "entryZone", "stopLoss", "takeProfits", "riskRewardRatio"]
     },
-    veteranInsight: { type: Type.STRING, description: "Saran spesifik, tips psikologi, atau peringatan 'jebakan' berdasarkan 30 tahun pengalaman." }
+    veteranInsight: { type: Type.STRING, description: "Nasihat psikologis dan 'institutional trap' warning." },
+    checklist: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          label: { type: Type.STRING },
+          confirmed: { type: Type.BOOLEAN }
+        },
+        required: ["label", "confirmed"]
+      },
+      description: "Konfirmasi teknikal (e.g., 'RSI Divergence', 'Volume Spike')"
+    }
   },
-  required: ["asset", "marketStructure", "marketStructureDetails", "levels", "technicals", "setup", "veteranInsight"]
+  required: ["asset", "marketStructure", "marketStructureDetails", "levels", "technicals", "setup", "veteranInsight", "checklist"]
 };
 
 export const analyzeAsset = async (assetName: string, language: Language): Promise<AnalysisData> => {
-  // CRITICAL: Buat instance baru setiap kali fungsi dipanggil untuk menangkap kunci terbaru dari dialog aistudio
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const languageInstruction = language === 'ID' 
-    ? "Berikan semua analisis dalam Bahasa Indonesia. Gunakan istilah teknis dalam bahasa Inggris jika umum namun jelaskan dalam Bahasa Indonesia."
-    : "Provide all analysis in English.";
+    ? "Berikan analisis dalam Bahasa Indonesia yang sangat profesional. Gunakan terminologi trader veteran seperti 'Likuiditas', 'Order Block', 'Smart Money Flow'."
+    : "Provide a highly professional analysis in English using veteran terminology like 'Liquidity', 'Order Blocks', 'Smart Money Flow'.";
 
   const basePrompt = `
-    Role: Senior Market Strategist & 30-Year Veteran Trader.
-    Task: Scan and analyze the asset: ${assetName}.
+    Role: You are a 30-Year Veteran Market Strategist & Institutional Trader.
+    Expertise: Price Action, Smart Money Concepts (SMC), ICT, and Macro Sentiment.
+    Task: Analyze the asset: ${assetName}.
     
-    Instruction: Think deeply about smart money concepts and liquidity before responding.
-    Language Requirement: ${languageInstruction}
-    Structure: Output MUST be in JSON format matching the provided schema.
+    Guidelines:
+    - Be brutally honest. If there is no trade, signal NEUTRAL.
+    - Identify 'liquidity sweeps' and 'fair value gaps'.
+    - Provide logical stop losses based on structure, not percentages.
+    - The 'veteranInsight' should feel like a private advisory from a mentor.
+    
+    Language: ${languageInstruction}
+    Format: Output MUST be strictly JSON.
   `;
 
-  // Mencoba dengan Google Search Grounding terlebih dahulu
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: basePrompt + " Use Google Search grounding for latest prices and news.",
+      model: "gemini-3-pro-preview",
+      contents: basePrompt + " Use Google Search grounding to find real-time prices, news, and sentiment.",
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
@@ -77,60 +95,37 @@ export const analyzeAsset = async (assetName: string, language: Language): Promi
     });
 
     const text = response.text;
-    if (!text) throw new Error("Empty response from Gemini");
+    if (!text) throw new Error("Empty response");
 
     const data = JSON.parse(text) as AnalysisData;
-    
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-    const groundingUrls: string[] = [];
-    if (groundingChunks) {
-      groundingChunks.forEach((chunk: any) => {
-        if (chunk.web?.uri) groundingUrls.push(chunk.web.uri);
-      });
-    }
+    const groundingUrls = response.candidates?.[0]?.groundingMetadata?.groundingChunks
+      ?.map((chunk: any) => chunk.web?.uri)
+      .filter(Boolean) || [];
     
     return { 
       ...data, 
-      groundingUrls: Array.from(new Set(groundingUrls)).slice(0, 5),
+      groundingUrls: Array.from(new Set(groundingUrls as string[])).slice(0, 5),
       isRealTime: true 
     };
 
   } catch (error: any) {
-    console.warn("API Call Failed. Falling back...", error);
+    console.warn("Primary API Call Failed. Using fallback...", error);
     
-    // Fallback logic jika permission ditolak atau key bermasalah
-    if (error.message?.includes('403') || error.message?.includes('permission') || error.message?.includes('not found')) {
-      try {
-        // Buat instance baru lagi untuk percobaan tanpa grounding
-        const aiFallback = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const fallbackResponse = await aiFallback.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: basePrompt + " (Note: External search is currently limited, use your internal knowledge base).",
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: analysisSchema,
-          },
-        });
+    const fallbackResponse = await ai.models.generateContent({
+      model: "gemini-3-pro-preview",
+      contents: basePrompt + " (Search grounding unavailable, use internal knowledge).",
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: analysisSchema,
+      },
+    });
 
-        const fallbackText = fallbackResponse.text;
-        if (!fallbackText) throw new Error("Fallback response empty");
+    const fallbackText = fallbackResponse.text;
+    if (!fallbackText) throw new Error("Fallback empty");
 
-        const data = JSON.parse(fallbackText) as AnalysisData;
-        return { 
-          ...data, 
-          isRealTime: false 
-        };
-      } catch (fallbackError: any) {
-        console.error("Critical: Fallback also failed", fallbackError);
-        
-        // Pesan instruksi spesifik untuk pengguna
-        if (fallbackError.message?.includes('403') || fallbackError.message?.includes('not found')) {
-          throw new Error("Akses Ditolak: Kunci API Anda tidak valid atau kuota habis. Silakan klik tombol 'Connect' di navigasi atas untuk memilih kunci yang valid.");
-        }
-        throw fallbackError;
-      }
-    }
-    
-    throw error;
+    return { 
+      ...JSON.parse(fallbackText), 
+      isRealTime: false 
+    };
   }
 };

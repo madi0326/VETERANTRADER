@@ -13,6 +13,7 @@ export interface MarketLevels {
   supports: string[];
   resistances: string[];
   fibonacci: string[];
+  institutionalZones?: string[]; // Supply/Demand or Order Blocks
 }
 
 export interface Technicals {
@@ -20,6 +21,11 @@ export interface Technicals {
   momentum: string;
   volume: string;
   volatility: string;
+}
+
+export interface ChecklistItem {
+  label: string;
+  confirmed: boolean;
 }
 
 export interface AnalysisData {
@@ -31,8 +37,9 @@ export interface AnalysisData {
   technicals: Technicals;
   setup: TradeSetup;
   veteranInsight: string;
+  checklist: ChecklistItem[];
   groundingUrls?: string[];
-  isRealTime?: boolean; // True jika pencarian Google berhasil
+  isRealTime?: boolean;
 }
 
 export enum LoadingState {
