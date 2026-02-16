@@ -62,11 +62,7 @@ const analysisSchema = {
 };
 
 export const analyzeAsset = async (assetName: string, language: Language): Promise<AnalysisData> => {
-  // Ensure the API Key is present. On Vercel, this must be set in the Project Settings as API_KEY.
-  if (!process.env.API_KEY) {
-    throw new Error("API Key is missing. Ensure the environment variable 'API_KEY' is configured in your project settings.");
-  }
-
+  // Direct use of process.env.API_KEY as per core initialization guidelines
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const languageInstruction = language === 'ID' 
@@ -100,7 +96,7 @@ export const analyzeAsset = async (assetName: string, language: Language): Promi
     });
 
     const text = response.text;
-    if (!text) throw new Error("Empty response from AI engine.");
+    if (!text) throw new Error("Gagal menerima data dari satelit analitik.");
 
     const data = JSON.parse(text) as AnalysisData;
     const groundingUrls = response.candidates?.[0]?.groundingMetadata?.groundingChunks
@@ -114,13 +110,12 @@ export const analyzeAsset = async (assetName: string, language: Language): Promi
     };
 
   } catch (error: any) {
-    console.warn("Primary Analysis Interrupted. Executing Fallback protocol...", error);
+    console.warn("Grounding failed, attempting core fallback...", error);
     
-    // Attempt fallback without grounding if the error was tool-related
     try {
       const fallbackResponse = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: basePrompt + " (Search grounding unavailable, use internal market knowledge up to 2024).",
+        contents: basePrompt + " (Search grounding unavailable, analyze based on core technical patterns).",
         config: {
           responseMimeType: "application/json",
           responseSchema: analysisSchema,
@@ -128,16 +123,18 @@ export const analyzeAsset = async (assetName: string, language: Language): Promi
       });
 
       const fallbackText = fallbackResponse.text;
-      if (!fallbackText) throw new Error("Fallback failed to generate content.");
+      if (!fallbackText) throw new Error("Fallback protocol failure.");
 
       return { 
         ...JSON.parse(fallbackText), 
         isRealTime: false 
       };
     } catch (fallbackError: any) {
-      // Re-throw the original error if fallback also fails or specifically the API key error
-      if (error.message?.includes("API Key")) throw error;
-      throw new Error(fallbackError.message || "Institutional Feed Offline. Please try again later.");
+      // Cleaned up error messages to avoid requesting the user to manage API keys
+      if (error.message?.includes("API Key") || fallbackError.message?.includes("API Key")) {
+        throw new Error("Sistem Keamanan: Kesalahan validasi kredensial pada satelit analitik.");
+      }
+      throw new Error(fallbackError.message || "Koneksi ke server pusat terputus. Coba lagi dalam beberapa saat.");
     }
   }
 };

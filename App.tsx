@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { analyzeAsset } from './services/geminiService';
 import { AnalysisData, LoadingState, Language } from './types';
 import AnalysisDashboard from './components/AnalysisDashboard';
-import { Search, Terminal, AlertTriangle, Cpu, Globe, ShieldCheck, Lock, ChevronRight } from 'lucide-react';
+// Added Search icon to imports to fix "Cannot find name 'Search'" error
+import { Terminal, AlertTriangle, Cpu, Globe, ShieldCheck, Lock, ChevronRight, Search } from 'lucide-react';
 
 const App: React.FC = () => {
   const [assetInput, setAssetInput] = useState('');
@@ -12,25 +13,32 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState<Language>('ID');
 
-  const handleAnalyze = async (e: React.FormEvent, customAsset?: string) => {
-    e.preventDefault();
-    const targetAsset = customAsset || assetInput;
-    if (!targetAsset.trim()) return;
-
-    // Reset UI to terminal mode for new analysis
+  const performAnalysis = async (target: string) => {
+    if (!target.trim()) return;
+    
     setData(null);
     setError(null);
     setLoadingState(LoadingState.SCANNING_MARKET);
 
     try {
-      const result = await analyzeAsset(targetAsset, language);
+      const result = await analyzeAsset(target, language);
       setData(result);
       setLoadingState(LoadingState.COMPLETE);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Protocol Failure: External markets unreachable.");
+      setError(err.message || "Gagal menghubungi pusat data eksternal.");
       setLoadingState(LoadingState.ERROR);
     }
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    performAnalysis(assetInput);
+  };
+
+  const handleAssetClick = (asset: string) => {
+    setAssetInput(asset);
+    performAnalysis(asset);
   };
 
   const isScanning = loadingState !== LoadingState.IDLE && loadingState !== LoadingState.COMPLETE && loadingState !== LoadingState.ERROR;
@@ -38,7 +46,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#070708] text-terminal-text font-sans selection:bg-terminal-gold/30 selection:text-white">
       
-      {/* Dynamic Background Mesh */}
+      {/* Mesh Latar Belakang Dinamis */}
       <div className="fixed inset-0 pointer-events-none opacity-20">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-terminal-gold/10 blur-[120px] rounded-full"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-terminal-green/5 blur-[120px] rounded-full"></div>
@@ -56,15 +64,15 @@ const App: React.FC = () => {
              </div>
           </div>
 
-          {/* Direct Multi-Scan Search (appears when data exists or in transition) */}
-          {data && (
-            <form onSubmit={(e) => handleAnalyze(e)} className="flex-1 max-w-md hidden sm:block">
+          {/* Bar Pencarian Cepat di Header (Muncul saat hasil sudah ada) */}
+          {(data || loadingState === LoadingState.ERROR) && (
+            <form onSubmit={handleFormSubmit} className="flex-1 max-w-md hidden sm:block">
               <div className="relative group">
                 <input
                   type="text"
                   value={assetInput}
                   onChange={(e) => setAssetInput(e.target.value)}
-                  placeholder={language === 'ID' ? "PINDAH KE ASET LAIN..." : "SCAN ANOTHER ASSET..."}
+                  placeholder={language === 'ID' ? "GANTI ASET..." : "SWITCH ASSET..."}
                   className="w-full bg-terminal-panel border border-terminal-border text-white text-xs font-mono py-2 pl-4 pr-10 rounded-full focus:outline-none focus:border-terminal-gold transition-all"
                   disabled={isScanning}
                 />
@@ -98,7 +106,7 @@ const App: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-6 pt-12 relative z-10">
         
-        {/* Landing Hero */}
+        {/* Landing Page Hero */}
         {!data && loadingState === LoadingState.IDLE && (
           <div className="text-center mb-12 animate-fade-in space-y-6">
             <div className="inline-flex items-center gap-2 px-4 py-1 bg-terminal-gold/5 border border-terminal-gold/10 rounded-full text-[10px] font-black text-terminal-gold uppercase tracking-widest mb-4">
@@ -110,15 +118,15 @@ const App: React.FC = () => {
               <span className="text-terminal-gold italic">SMART MONEY.</span>
             </h2>
             <p className="text-terminal-dim text-lg max-w-2xl mx-auto uppercase tracking-wide font-medium">
-              30 years of institutional market experience, <br/> now powered by specialized Gemini reasoning.
+              30 tahun pengalaman pasar institusi, <br/> kini ditenagai oleh logika khusus Gemini Flash.
             </p>
           </div>
         )}
 
-        {/* Primary Search Engine (Only on Landing) */}
+        {/* Search Engine Utama */}
         {!data && loadingState === LoadingState.IDLE && (
           <div className="transition-all duration-700 ease-in-out min-h-[30vh] flex flex-col items-center">
-            <form onSubmit={handleAnalyze} className="w-full max-w-3xl relative group">
+            <form onSubmit={handleFormSubmit} className="w-full max-w-3xl relative group">
               <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
                 <Globe className="text-terminal-dim group-focus-within:text-terminal-gold transition-colors" size={24} />
               </div>
@@ -137,14 +145,15 @@ const App: React.FC = () => {
               </button>
             </form>
 
+            {/* Quick Select Buttons - Sekarang Langsung Scan saat Diklik */}
             <div className="mt-10 flex flex-wrap justify-center gap-4 animate-fade-in delay-200">
               {['BTC/USDT', 'ETH/USDT', 'XAU/USD', 'EUR/USD', 'AAPL', 'NVDA'].map(asset => (
                 <button 
                   key={asset}
-                  onClick={() => { setAssetInput(asset); }}
-                  onDoubleClick={() => handleAnalyze({ preventDefault: () => {} } as any, asset)}
-                  className="px-6 py-2 bg-terminal-panel/40 border border-terminal-border/50 rounded-full text-[10px] font-black text-terminal-dim hover:text-white hover:border-terminal-gold hover:bg-terminal-gold/5 transition-all uppercase tracking-widest"
+                  onClick={() => handleAssetClick(asset)}
+                  className="px-6 py-2 bg-terminal-panel/40 border border-terminal-border/50 rounded-full text-[10px] font-black text-terminal-dim hover:text-white hover:border-terminal-gold hover:bg-terminal-gold/5 transition-all uppercase tracking-widest flex items-center gap-2"
                 >
+                  <Search size={10} className="opacity-50" />
                   {asset}
                 </button>
               ))}
@@ -152,7 +161,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Loading Sequence */}
+        {/* Loading Terminal */}
         {isScanning && (
            <div className="w-full max-w-2xl mx-auto mt-20 text-center space-y-12 animate-fade-in">
               <div className="relative w-32 h-32 mx-auto">
@@ -181,25 +190,29 @@ const App: React.FC = () => {
            </div>
         )}
 
-        {/* Error Handling */}
+        {/* Area Error */}
         {loadingState === LoadingState.ERROR && (
           <div className="w-full max-w-2xl mx-auto mt-20 p-10 bg-terminal-red/5 border border-terminal-red/20 rounded-3xl text-center space-y-6">
             <div className="w-20 h-20 bg-terminal-red/10 rounded-full flex items-center justify-center mx-auto text-terminal-red">
               <AlertTriangle size={40} />
             </div>
             <h3 className="text-2xl font-black text-white uppercase italic">Protocol Interrupted</h3>
-            <p className="text-terminal-dim font-medium leading-relaxed">{error}</p>
-            <div className="flex gap-4 justify-center pt-4">
+            <div className="bg-black/40 p-4 rounded-xl border border-terminal-border">
+                <p className="text-terminal-dim font-mono text-xs leading-relaxed">{error}</p>
+            </div>
+            <div className="flex flex-col gap-4 items-center pt-4">
+              {/* Removed API key setup hint text to comply with security guidelines */}
               <button 
                 onClick={() => { setLoadingState(LoadingState.IDLE); setError(null); }}
                 className="px-8 py-3 bg-terminal-panel border border-terminal-border text-white rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all"
               >
-                Retry Configuration
+                Back to Home
               </button>
             </div>
           </div>
         )}
 
+        {/* Tampilan Dashboard Hasil */}
         {data && loadingState === LoadingState.COMPLETE && (
            <AnalysisDashboard data={data} language={language} />
         )}
