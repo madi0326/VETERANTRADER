@@ -62,6 +62,11 @@ const analysisSchema = {
 };
 
 export const analyzeAsset = async (assetName: string, language: Language): Promise<AnalysisData> => {
+  // Ensure the API Key is present. On Vercel, this must be set in the Project Settings as API_KEY.
+  if (!process.env.API_KEY) {
+    throw new Error("API Key is missing. Ensure the environment variable 'API_KEY' is configured in your project settings.");
+  }
+
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const languageInstruction = language === 'ID' 
@@ -95,7 +100,7 @@ export const analyzeAsset = async (assetName: string, language: Language): Promi
     });
 
     const text = response.text;
-    if (!text) throw new Error("Empty response");
+    if (!text) throw new Error("Empty response from AI engine.");
 
     const data = JSON.parse(text) as AnalysisData;
     const groundingUrls = response.candidates?.[0]?.groundingMetadata?.groundingChunks
@@ -109,23 +114,30 @@ export const analyzeAsset = async (assetName: string, language: Language): Promi
     };
 
   } catch (error: any) {
-    console.warn("Primary API Call Failed. Using fallback...", error);
+    console.warn("Primary Analysis Interrupted. Executing Fallback protocol...", error);
     
-    const fallbackResponse = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: basePrompt + " (Search grounding unavailable, use internal knowledge).",
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: analysisSchema,
-      },
-    });
+    // Attempt fallback without grounding if the error was tool-related
+    try {
+      const fallbackResponse = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: basePrompt + " (Search grounding unavailable, use internal market knowledge up to 2024).",
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: analysisSchema,
+        },
+      });
 
-    const fallbackText = fallbackResponse.text;
-    if (!fallbackText) throw new Error("Fallback empty");
+      const fallbackText = fallbackResponse.text;
+      if (!fallbackText) throw new Error("Fallback failed to generate content.");
 
-    return { 
-      ...JSON.parse(fallbackText), 
-      isRealTime: false 
-    };
+      return { 
+        ...JSON.parse(fallbackText), 
+        isRealTime: false 
+      };
+    } catch (fallbackError: any) {
+      // Re-throw the original error if fallback also fails or specifically the API key error
+      if (error.message?.includes("API Key")) throw error;
+      throw new Error(fallbackError.message || "Institutional Feed Offline. Please try again later.");
+    }
   }
 };
