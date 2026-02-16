@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { analyzeAsset } from './services/geminiService';
 import { AnalysisData, LoadingState, Language } from './types';
 import AnalysisDashboard from './components/AnalysisDashboard';
-// Added Search icon to imports to fix "Cannot find name 'Search'" error
 import { Terminal, AlertTriangle, Cpu, Globe, ShieldCheck, Lock, ChevronRight, Search } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -16,6 +15,7 @@ const App: React.FC = () => {
   const performAnalysis = async (target: string) => {
     if (!target.trim()) return;
     
+    // Clear previous view and start terminal sequence
     setData(null);
     setError(null);
     setLoadingState(LoadingState.SCANNING_MARKET);
@@ -46,7 +46,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#070708] text-terminal-text font-sans selection:bg-terminal-gold/30 selection:text-white">
       
-      {/* Mesh Latar Belakang Dinamis */}
+      {/* Dynamic Background Mesh */}
       <div className="fixed inset-0 pointer-events-none opacity-20">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-terminal-gold/10 blur-[120px] rounded-full"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-terminal-green/5 blur-[120px] rounded-full"></div>
@@ -64,19 +64,22 @@ const App: React.FC = () => {
              </div>
           </div>
 
-          {/* Bar Pencarian Cepat di Header (Muncul saat hasil sudah ada) */}
-          {(data || loadingState === LoadingState.ERROR) && (
-            <form onSubmit={handleFormSubmit} className="flex-1 max-w-md hidden sm:block">
+          {/* Persistent Header Search for Rapid Market Switching */}
+          {(data || loadingState === LoadingState.ERROR || isScanning) && (
+            <form onSubmit={handleFormSubmit} className="flex-1 max-w-md animate-fade-in">
               <div className="relative group">
                 <input
                   type="text"
                   value={assetInput}
                   onChange={(e) => setAssetInput(e.target.value)}
-                  placeholder={language === 'ID' ? "GANTI ASET..." : "SWITCH ASSET..."}
-                  className="w-full bg-terminal-panel border border-terminal-border text-white text-xs font-mono py-2 pl-4 pr-10 rounded-full focus:outline-none focus:border-terminal-gold transition-all"
+                  placeholder={language === 'ID' ? "PINDAH KE ASET LAIN..." : "SWITCH TO ASSET..."}
+                  className="w-full bg-terminal-panel/80 border border-terminal-border text-white text-xs font-mono py-2.5 pl-10 pr-10 rounded-full focus:outline-none focus:border-terminal-gold focus:ring-1 focus:ring-terminal-gold/20 transition-all"
                   disabled={isScanning}
                 />
-                <button type="submit" disabled={isScanning} className="absolute right-1 top-1 bottom-1 px-3 bg-terminal-gold text-black rounded-full hover:bg-white transition-colors">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-terminal-dim">
+                  <Search size={14} />
+                </div>
+                <button type="submit" disabled={isScanning} className="absolute right-1.5 top-1.5 bottom-1.5 px-2 bg-terminal-gold text-black rounded-full hover:bg-white transition-colors disabled:opacity-50">
                   <ChevronRight size={14} />
                 </button>
               </div>
@@ -94,7 +97,7 @@ const App: React.FC = () => {
                 <button 
                   key={l}
                   onClick={() => setLanguage(l as Language)}
-                  className={`px-3 sm:px-4 py-1 text-[10px] font-black rounded-full transition-all ${language === l ? 'bg-terminal-gold text-black' : 'text-terminal-dim hover:text-white'}`}
+                  className={`px-3 py-1 text-[10px] font-black rounded-full transition-all ${language === l ? 'bg-terminal-gold text-black' : 'text-terminal-dim hover:text-white'}`}
                 >
                   {l}
                 </button>
@@ -106,8 +109,8 @@ const App: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-6 pt-12 relative z-10">
         
-        {/* Landing Page Hero */}
-        {!data && loadingState === LoadingState.IDLE && (
+        {/* Landing Hero (Only if no data and not scanning) */}
+        {!data && !isScanning && loadingState === LoadingState.IDLE && (
           <div className="text-center mb-12 animate-fade-in space-y-6">
             <div className="inline-flex items-center gap-2 px-4 py-1 bg-terminal-gold/5 border border-terminal-gold/10 rounded-full text-[10px] font-black text-terminal-gold uppercase tracking-widest mb-4">
               <ShieldCheck size={14} />
@@ -118,13 +121,13 @@ const App: React.FC = () => {
               <span className="text-terminal-gold italic">SMART MONEY.</span>
             </h2>
             <p className="text-terminal-dim text-lg max-w-2xl mx-auto uppercase tracking-wide font-medium">
-              30 tahun pengalaman pasar institusi, <br/> kini ditenagai oleh logika khusus Gemini Flash.
+              30 years of institutional market experience, <br/> now powered by specialized Gemini reasoning.
             </p>
           </div>
         )}
 
-        {/* Search Engine Utama */}
-        {!data && loadingState === LoadingState.IDLE && (
+        {/* Primary Search Interface */}
+        {!data && !isScanning && loadingState === LoadingState.IDLE && (
           <div className="transition-all duration-700 ease-in-out min-h-[30vh] flex flex-col items-center">
             <form onSubmit={handleFormSubmit} className="w-full max-w-3xl relative group">
               <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
@@ -145,7 +148,6 @@ const App: React.FC = () => {
               </button>
             </form>
 
-            {/* Quick Select Buttons - Sekarang Langsung Scan saat Diklik */}
             <div className="mt-10 flex flex-wrap justify-center gap-4 animate-fade-in delay-200">
               {['BTC/USDT', 'ETH/USDT', 'XAU/USD', 'EUR/USD', 'AAPL', 'NVDA'].map(asset => (
                 <button 
@@ -161,7 +163,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Loading Terminal */}
+        {/* Loading Terminal Animation */}
         {isScanning && (
            <div className="w-full max-w-2xl mx-auto mt-20 text-center space-y-12 animate-fade-in">
               <div className="relative w-32 h-32 mx-auto">
@@ -180,17 +182,17 @@ const App: React.FC = () => {
               
               <div className="bg-black/80 backdrop-blur-md rounded-2xl p-6 font-mono text-[10px] text-left text-terminal-green border border-terminal-border/50 h-48 overflow-hidden shadow-2xl">
                 <p className="animate-pulse">&gt; INITIALIZING QUANT FEED...</p>
-                <p className="delay-100 animate-pulse">&gt; FETCHING INSTITUTIONAL ORDER DATA FOR {assetInput}...</p>
+                <p className="delay-100 animate-pulse">&gt; FETCHING INSTITUTIONAL ORDER DATA FOR {assetInput.toUpperCase()}...</p>
                 <p className="delay-200 animate-pulse">&gt; ANALYZING LIQUIDITY POOLS & ORDER BLOCKS...</p>
                 <p className="delay-500 animate-pulse">&gt; CALCULATING MARKET STRUCTURE SHIFT PROBABILITIES...</p>
                 <p className="delay-700 animate-pulse">&gt; APPLYING SMC VALIDATION RULES...</p>
                 <p className="delay-1000 animate-pulse">&gt; GENERATING EXECUTION BLUEPRINT...</p>
-                <p className="mt-4 text-terminal-gold font-bold">&gt; CONNECTING TO VETERAN BRAIN...</p>
+                <p className="mt-4 text-terminal-gold font-bold">&gt; CONNECTING TO VETERAN CORE...</p>
               </div>
            </div>
         )}
 
-        {/* Area Error */}
+        {/* Error Handling */}
         {loadingState === LoadingState.ERROR && (
           <div className="w-full max-w-2xl mx-auto mt-20 p-10 bg-terminal-red/5 border border-terminal-red/20 rounded-3xl text-center space-y-6">
             <div className="w-20 h-20 bg-terminal-red/10 rounded-full flex items-center justify-center mx-auto text-terminal-red">
@@ -201,18 +203,17 @@ const App: React.FC = () => {
                 <p className="text-terminal-dim font-mono text-xs leading-relaxed">{error}</p>
             </div>
             <div className="flex flex-col gap-4 items-center pt-4">
-              {/* Removed API key setup hint text to comply with security guidelines */}
               <button 
-                onClick={() => { setLoadingState(LoadingState.IDLE); setError(null); }}
+                onClick={() => { setLoadingState(LoadingState.IDLE); setError(null); setAssetInput(''); }}
                 className="px-8 py-3 bg-terminal-panel border border-terminal-border text-white rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all"
               >
-                Back to Home
+                Reset Terminal
               </button>
             </div>
           </div>
         )}
 
-        {/* Tampilan Dashboard Hasil */}
+        {/* Result Dashboard */}
         {data && loadingState === LoadingState.COMPLETE && (
            <AnalysisDashboard data={data} language={language} />
         )}

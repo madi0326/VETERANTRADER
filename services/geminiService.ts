@@ -62,32 +62,27 @@ const analysisSchema = {
 };
 
 export const analyzeAsset = async (assetName: string, language: Language): Promise<AnalysisData> => {
-  // Direct use of process.env.API_KEY as per core initialization guidelines
+  // Always use process.env.API_KEY as per instructions
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const languageInstruction = language === 'ID' 
-    ? "Berikan analisis dalam Bahasa Indonesia yang sangat profesional. Gunakan terminologi trader veteran seperti 'Likuiditas', 'Order Block', 'Smart Money Flow'."
-    : "Provide a highly professional analysis in English using veteran terminology like 'Liquidity', 'Order Blocks', 'Smart Money Flow'.";
+    ? "Analisis dalam Bahasa Indonesia profesional. Gunakan istilah: Liquidity Sweep, MSS, Order Block, FVG."
+    : "Professional English analysis. Use: Liquidity Sweep, MSS, Order Block, FVG.";
 
   const basePrompt = `
-    Role: You are a 30-Year Veteran Market Strategist & Institutional Trader.
-    Expertise: Price Action, Smart Money Concepts (SMC), ICT, and Macro Sentiment.
-    Task: Analyze the asset: ${assetName}.
-    
-    Guidelines:
-    - Be brutally honest. If there is no trade, signal NEUTRAL.
-    - Identify 'liquidity sweeps' and 'fair value gaps'.
-    - Provide logical stop losses based on structure, not percentages.
-    - The 'veteranInsight' should feel like a private advisory from a mentor.
-    
+    Role: Senior Institutional Trader (30-Year Veteran).
+    Task: Analyze ${assetName} using SMC and ICT concepts.
+    Requirements:
+    - Signal: LONG, SHORT, or NEUTRAL.
+    - Focus on 'Institutional Liquidity' and 'Market Structure Shift'.
+    - veteranInsight: Real-talk psychological advice.
     Language: ${languageInstruction}
-    Format: Output MUST be strictly JSON.
   `;
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: basePrompt + " Use Google Search grounding to find real-time prices, news, and sentiment.",
+      contents: basePrompt + " Use Google Search grounding for real-time price and sentiment.",
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
@@ -96,7 +91,7 @@ export const analyzeAsset = async (assetName: string, language: Language): Promi
     });
 
     const text = response.text;
-    if (!text) throw new Error("Gagal menerima data dari satelit analitik.");
+    if (!text) throw new Error("Terminal link failed to receive data.");
 
     const data = JSON.parse(text) as AnalysisData;
     const groundingUrls = response.candidates?.[0]?.groundingMetadata?.groundingChunks
@@ -110,31 +105,25 @@ export const analyzeAsset = async (assetName: string, language: Language): Promi
     };
 
   } catch (error: any) {
-    console.warn("Grounding failed, attempting core fallback...", error);
+    // Fallback if grounding fails to prevent total failure
+    console.warn("Secondary sensor data required...", error);
     
     try {
       const fallbackResponse = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: basePrompt + " (Search grounding unavailable, analyze based on core technical patterns).",
+        contents: basePrompt + " (Grounding unavailable, use internal market intelligence).",
         config: {
           responseMimeType: "application/json",
           responseSchema: analysisSchema,
         },
       });
 
-      const fallbackText = fallbackResponse.text;
-      if (!fallbackText) throw new Error("Fallback protocol failure.");
-
       return { 
-        ...JSON.parse(fallbackText), 
+        ...JSON.parse(fallbackResponse.text), 
         isRealTime: false 
       };
     } catch (fallbackError: any) {
-      // Cleaned up error messages to avoid requesting the user to manage API keys
-      if (error.message?.includes("API Key") || fallbackError.message?.includes("API Key")) {
-        throw new Error("Sistem Keamanan: Kesalahan validasi kredensial pada satelit analitik.");
-      }
-      throw new Error(fallbackError.message || "Koneksi ke server pusat terputus. Coba lagi dalam beberapa saat.");
+      throw new Error("Sistem Offline: Gagal memvalidasi kredensial terminal. Periksa konfigurasi API_KEY di Vercel Dashboard.");
     }
   }
 };
